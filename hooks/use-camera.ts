@@ -7,6 +7,7 @@ export function useCamera() {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const [isVideoReady, setIsVideoReady] = useState(false)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const { camera, setCameraState } = usePoseStore()
 
@@ -16,6 +17,11 @@ export function useCamera() {
 
     setCameraState({ isInitializing: true, error: null })
     setIsVideoReady(false)
+
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+    }
 
     try {
       // Request camera access
@@ -43,10 +49,19 @@ export function useCamera() {
         const handleCanPlay = () => {
           console.log("Video can start playing")
           setIsVideoReady(true)
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current)
+            timeoutRef.current = null
+          }
         }
         
         const handlePlaying = () => {
           console.log("Video is now playing")
+          setIsVideoReady(true)
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current)
+            timeoutRef.current = null
+          }
         }
         
         const handleError = (e: Event) => {
@@ -82,10 +97,25 @@ export function useCamera() {
         try {
           await video.play()
           console.log("Video play() successful")
+          
+          // Fallback: if events don't fire, check video state after a delay
+          timeoutRef.current = setTimeout(() => {
+            if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+              console.log("Fallback: Video ready detected via timeout")
+              setIsVideoReady(true)
+            } else {
+              console.log("Fallback: Video still not ready, current state:", {
+                readyState: video.readyState,
+                videoWidth: video.videoWidth,
+                videoHeight: video.videoHeight
+              })
+            }
+          }, 2000) // Wait 2 seconds for fallback
+          
         } catch (playError) {
           console.error("Video play() failed:", playError)
           // Even if play() fails, the video might still work
-          // The canplay event should still fire
+          // The canplay event should still fire, or we'll use the fallback
         }
       }
 
@@ -133,6 +163,12 @@ export function useCamera() {
     if (videoRef.current) {
       videoRef.current.srcObject = null
       videoRef.current.load() // Reset video element
+    }
+
+    // Clear timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+      timeoutRef.current = null
     }
 
     setIsVideoReady(false)

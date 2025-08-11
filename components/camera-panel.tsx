@@ -30,6 +30,29 @@ export function CameraPanel() {
     }
   }
 
+  const handleRetryVideo = async () => {
+    console.log("Retrying video initialization...")
+    if (videoRef.current) {
+      const video = videoRef.current
+      console.log("Current video state:", {
+        readyState: video.readyState,
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight,
+        srcObject: video.srcObject,
+        paused: video.paused
+      })
+      
+      // Force reload the video
+      video.load()
+      try {
+        await video.play()
+        console.log("Retry play() successful")
+      } catch (e) {
+        console.error("Retry play() failed:", e)
+      }
+    }
+  }
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -89,6 +112,14 @@ export function CameraPanel() {
                     <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin" />
                     <p>Initializing video stream...</p>
                     <p className="text-sm opacity-75">Please wait</p>
+                    <Button 
+                      onClick={handleRetryVideo}
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-3 text-white border-white hover:bg-white hover:text-black"
+                    >
+                      Retry Video
+                    </Button>
                   </div>
                 </div>
               )}
@@ -180,6 +211,27 @@ export function CameraPanel() {
               </div>
               <div className="text-sm text-gray-600">Detection Confidence</div>
             </div>
+          </div>
+        )}
+
+        {/* Debug Info */}
+        {isActive && (
+          <div className="pt-4 border-t">
+            <details className="text-sm">
+              <summary className="cursor-pointer text-gray-600">Debug Info</summary>
+              <div className="mt-2 p-2 bg-gray-50 rounded text-xs font-mono">
+                <div>Video Ready: {isVideoReady ? 'Yes' : 'No'}</div>
+                <div>Video Element: {videoRef.current ? 'Exists' : 'Null'}</div>
+                {videoRef.current && (
+                  <>
+                    <div>Ready State: {videoRef.current.readyState}</div>
+                    <div>Video Dimensions: {videoRef.current.videoWidth} x {videoRef.current.videoHeight}</div>
+                    <div>Paused: {videoRef.current.paused ? 'Yes' : 'No'}</div>
+                    <div>Has Stream: {videoRef.current.srcObject ? 'Yes' : 'No'}</div>
+                  </>
+                )}
+              </div>
+            </details>
           </div>
         )}
       </CardContent>
