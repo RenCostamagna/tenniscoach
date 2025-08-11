@@ -18,8 +18,7 @@ export function PoseWorkerProvider({ children }: PoseWorkerProviderProps) {
     
     const initWorker = async () => {
       try {
-        // Try to create worker with dynamic import
-        const workerModule = await import("../../lib/pose.worker.ts")
+        // Create worker with the simplified version
         worker = new Worker(new URL("../../lib/pose.worker.ts", import.meta.url), { type: "module" })
       } catch (error) {
         console.error("Failed to create worker:", error)

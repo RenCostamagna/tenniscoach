@@ -47,4 +47,8 @@ export type WorkerIn =
   | { type: "POSE_FRAME"; t: number; pose: any; fps: number; handedness: "R" | "L" }
   | { type: "SET_TEMPLATE"; strokeType: string }
 
-export type WorkerOut = { type: "ANALYSIS_UPDATE"; data: ComparePayload } | { type: "ANALYSIS_IDLE" }
+export type WorkerOut = 
+  | { type: "ANALYSIS_UPDATE"; data: ComparePayload } 
+  | { type: "ANALYSIS_IDLE" }
+  | { type: "INITIALIZED" }
+  | { type: "ERROR"; data: string }
