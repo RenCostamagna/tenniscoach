@@ -15,6 +15,7 @@ export function useCamera() {
   const startCamera = useCallback(async () => {
     if (camera.isActive || camera.isInitializing) return
 
+    console.log("Starting camera...")
     setCameraState({ isInitializing: true, error: null })
     setIsVideoReady(false)
 
@@ -25,6 +26,7 @@ export function useCamera() {
 
     try {
       // Request camera access
+      console.log("Requesting camera permissions...")
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 1280 },
@@ -35,11 +37,13 @@ export function useCamera() {
         audio: false,
       })
 
+      console.log("Camera stream obtained:", stream)
       streamRef.current = stream
 
       // Set video source
       if (videoRef.current) {
         const video = videoRef.current
+        console.log("Video element found, setting up stream...")
         
         // Add event listeners for video readiness
         const handleLoadedMetadata = () => {
@@ -87,6 +91,7 @@ export function useCamera() {
         video.addEventListener('error', handleError)
 
         // Set the stream and start playing
+        console.log("Setting srcObject on video element...")
         video.srcObject = stream
         
         // Ensure video is muted and autoplay is enabled
@@ -94,6 +99,7 @@ export function useCamera() {
         video.autoplay = true
         video.playsInline = true
         
+        console.log("Attempting to play video...")
         try {
           await video.play()
           console.log("Video play() successful")
@@ -117,6 +123,8 @@ export function useCamera() {
           // Even if play() fails, the video might still work
           // The canplay event should still fire, or we'll use the fallback
         }
+      } else {
+        console.error("Video element not found!")
       }
 
       setCameraState({

@@ -22,6 +22,20 @@ export function CameraPanel() {
     }
   }, [isActive, isWorkerReady, createCanvas])
 
+  // Ensure video element is properly initialized when camera becomes active
+  useEffect(() => {
+    if (isActive && videoRef.current) {
+      console.log("Camera active, video element found:", videoRef.current)
+      // Force a small delay to ensure DOM is ready
+      const timer = setTimeout(() => {
+        if (videoRef.current) {
+          console.log("Video element ready state:", videoRef.current.readyState)
+        }
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [isActive])
+
   const handleToggleCamera = async () => {
     if (isActive) {
       stopCamera()
@@ -92,55 +106,57 @@ export function CameraPanel() {
 
         {/* Video Container */}
         <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden">
-          {isActive ? (
-            <>
-              <video 
-                ref={videoRef} 
-                className="w-full h-full object-cover" 
-                playsInline 
-                muted 
-                autoPlay 
-                controls={false}
-                disablePictureInPicture
-                disableRemotePlayback
-              />
+          {/* Video element - always present but conditionally visible */}
+          <video 
+            ref={videoRef} 
+            className={`w-full h-full object-cover transition-opacity duration-300 ${
+              isActive && isVideoReady ? 'opacity-100' : 'opacity-0'
+            }`}
+            playsInline 
+            muted 
+            autoPlay 
+            controls={false}
+            disablePictureInPicture
+            disableRemotePlayback
+          />
 
-              {/* Video Status Overlay */}
-              {!isVideoReady && (
-                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                  <div className="text-center text-white">
-                    <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin" />
-                    <p>Initializing video stream...</p>
-                    <p className="text-sm opacity-75">Please wait</p>
-                    <Button 
-                      onClick={handleRetryVideo}
-                      variant="outline" 
-                      size="sm" 
-                      className="mt-3 text-white border-white hover:bg-white hover:text-black"
-                    >
-                      Retry Video
-                    </Button>
-                  </div>
-                </div>
-              )}
+          {/* Video Status Overlay */}
+          {isActive && !isVideoReady && (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+              <div className="text-center text-white">
+                <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin" />
+                <p>Initializing video stream...</p>
+                <p className="text-sm opacity-75">Please wait</p>
+                <Button 
+                  onClick={handleRetryVideo}
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-3 text-white border-white hover:bg-white hover:text-black"
+                >
+                  Retry Video
+                </Button>
+              </div>
+            </div>
+          )}
 
-              {/* Pose Detection Overlay */}
-              {currentFrame && isVideoReady && (
-                <div className="absolute top-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-sm">
-                  Pose Detected: {currentFrame.landmarks.length} landmarks
-                </div>
-              )}
+          {/* Pose Detection Overlay */}
+          {currentFrame && isVideoReady && (
+            <div className="absolute top-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-sm">
+              Pose Detected: {currentFrame.landmarks.length} landmarks
+            </div>
+          )}
 
-              {/* Metrics Overlay */}
-              {metrics.confidence > 0 && isVideoReady && (
-                <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-sm space-y-1">
-                  <div>Confidence: {(metrics.confidence * 100).toFixed(0)}%</div>
-                  <div>Stability: {(metrics.stability * 100).toFixed(0)}%</div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="flex items-center justify-center h-full text-gray-500">
+          {/* Metrics Overlay */}
+          {metrics.confidence > 0 && isVideoReady && (
+            <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-sm space-y-1">
+              <div>Confidence: {(metrics.confidence * 100).toFixed(0)}%</div>
+              <div>Stability: {(metrics.stability * 100).toFixed(0)}%</div>
+            </div>
+          )}
+
+          {/* Camera not active state */}
+          {!isActive && (
+            <div className="absolute inset-0 flex items-center justify-center text-gray-500">
               <div className="text-center">
                 <Camera className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <p>Camera not active</p>
