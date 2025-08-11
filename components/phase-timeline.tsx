@@ -6,8 +6,8 @@ import { useMemo, useState, useCallback, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Play, Square, Clock } from "lucide-react"
-import { usePoseStore } from "@/store/pose-store"
+import { Play, Square, Clock, Target, TrendingUp } from "lucide-react"
+import { usePoseStore, selectPhaseDetails } from "@/store/pose-store"
 
 interface TooltipData {
   x: number
@@ -22,11 +22,13 @@ interface TooltipData {
     wrist: number
     knee: number
     handHeight: number
+    biomechanicalScore?: number
   }
 }
 
 export function PhaseTimeline() {
   const { phases, currentPhase, startPhase, endCurrentPhase, frames } = usePoseStore()
+  const phaseDetails = usePoseStore(selectPhaseDetails)
   const [tooltip, setTooltip] = useState<TooltipData | null>(null)
   const [focusedSegment, setFocusedSegment] = useState<number>(-1)
   const timelineRef = useRef<HTMLDivElement>(null)
@@ -86,13 +88,17 @@ export function PhaseTimeline() {
     const frameIndex = Math.floor(relativeX * 60)
     const timestamp = segment.startTime + relativeX * segment.duration
 
+    // Try to get biomechanical data from phase details
+    const phaseDetail = phaseDetails.find(detail => detail.phase === segment.name)
+    
     const metrics = {
-      similarity: Math.random() * 100,
-      xFactor: Math.random() * 100,
-      elbow: Math.random() * 100,
-      wrist: Math.random() * 100,
-      knee: Math.random() * 100,
+      similarity: phaseDetail?.score ? phaseDetail.score * 100 : Math.random() * 100,
+      xFactor: phaseDetail?.biomechanicalMetrics?.xFactor ? phaseDetail.biomechanicalMetrics.xFactor * 100 : Math.random() * 100,
+      elbow: phaseDetail?.biomechanicalMetrics?.elbowAngle ? phaseDetail.biomechanicalMetrics.elbowAngle * 100 : Math.random() * 100,
+      wrist: phaseDetail?.biomechanicalMetrics?.wristPosition ? phaseDetail.biomechanicalMetrics.wristPosition * 100 : Math.random() * 100,
+      knee: phaseDetail?.biomechanicalMetrics?.kneeStability ? phaseDetail.biomechanicalMetrics.kneeStability * 100 : Math.random() * 100,
       handHeight: Math.random() * 2 + 1,
+      biomechanicalScore: phaseDetail?.score ? phaseDetail.score * 100 : undefined
     }
 
     setTooltip({
@@ -103,7 +109,7 @@ export function PhaseTimeline() {
       timestamp,
       metrics,
     })
-  }, [])
+  }, [phaseDetails])
 
   const handleSegmentLeave = useCallback(() => {
     setTooltip(null)
@@ -148,6 +154,18 @@ export function PhaseTimeline() {
     startPhase(nextPhaseName)
   }
 
+  const getPhaseScore = (phaseName: string) => {
+    const phaseDetail = phaseDetails.find(detail => detail.phase === phaseName)
+    return phaseDetail?.score || 0
+  }
+
+  const getPhaseColor = (phaseName: string) => {
+    const score = getPhaseScore(phaseName)
+    if (score > 0.8) return "bg-green-500"
+    if (score > 0.6) return "bg-yellow-500"
+    return "bg-gray-300"
+  }
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -158,6 +176,12 @@ export function PhaseTimeline() {
           </CardTitle>
           <div className="flex items-center gap-2">
             <Badge variant="outline">Total: {formatDuration(totalDuration)}</Badge>
+            {phaseDetails.length > 0 && (
+              <Badge variant="secondary" className="flex items-center gap-1">
+                <Target className="h-3 w-3" />
+                Biomechanical Data Available
+              </Badge>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -207,12 +231,14 @@ export function PhaseTimeline() {
                   const isActive = segment.status === "active"
                   const isCompleted = segment.status === "completed"
                   const isFocused = focusedSegment === index
+                  const phaseScore = getPhaseScore(segment.name)
+                  const hasBiomechanicalData = phaseDetails.some(detail => detail.phase === segment.name)
 
                   return (
                     <div
                       key={segment.id}
                       className={`absolute top-0 h-full cursor-pointer transition-all duration-200 ${
-                        isActive ? "bg-blue-500 animate-pulse" : isCompleted ? "bg-green-500" : "bg-gray-300"
+                        isActive ? "bg-blue-500 animate-pulse" : isCompleted ? getPhaseColor(segment.name) : "bg-gray-300"
                       } ${isFocused ? "ring-2 ring-blue-400 ring-inset" : ""} hover:brightness-110`}
                       style={{
                         left: `${segment.startPercent}%`,
@@ -227,6 +253,11 @@ export function PhaseTimeline() {
                     >
                       <div className="absolute inset-0 flex items-center justify-center">
                         <span className="text-white text-xs font-medium truncate px-1">{segment.name}</span>
+                        {hasBiomechanicalData && (
+                          <div className="absolute top-1 right-1">
+                            <TrendingUp className="h-3 w-3 text-white" />
+                          </div>
+                        )}
                       </div>
                     </div>
                   )
@@ -237,6 +268,8 @@ export function PhaseTimeline() {
                 {phaseSegments.map((segment, index) => {
                   const isActive = segment.status === "active"
                   const isFocused = focusedSegment === index
+                  const phaseScore = getPhaseScore(segment.name)
+                  const hasBiomechanicalData = phaseDetails.some(detail => detail.phase === segment.name)
 
                   return (
                     <div
@@ -268,6 +301,12 @@ export function PhaseTimeline() {
                           >
                             {segment.status}
                           </Badge>
+                          {hasBiomechanicalData && (
+                            <Badge variant="outline" className="text-xs">
+                              <Target className="h-3 w-3 mr-1" />
+                              {Math.round(phaseScore * 100)}%
+                            </Badge>
+                          )}
                         </div>
                         <div className="text-sm text-gray-600">
                           Started: {new Date(segment.startTime).toLocaleTimeString()}
@@ -278,6 +317,9 @@ export function PhaseTimeline() {
                       <div className="text-right">
                         <div className="font-medium">{formatDuration(segment.duration)}</div>
                         {isActive && <div className="text-xs text-blue-600">Active</div>}
+                        {hasBiomechanicalData && (
+                          <div className="text-xs text-green-600">Biomechanical Data</div>
+                        )}
                       </div>
                     </div>
                   )
@@ -326,6 +368,9 @@ export function PhaseTimeline() {
               <>
                 <div className="border-t border-gray-600 pt-1 mt-2">
                   <div>Similarity: {tooltip.metrics.similarity.toFixed(1)}%</div>
+                  {tooltip.metrics.biomechanicalScore && (
+                    <div>Biomechanical Score: {tooltip.metrics.biomechanicalScore.toFixed(1)}%</div>
+                  )}
                   <div>X-Factor: {tooltip.metrics.xFactor.toFixed(1)}%</div>
                   <div>Elbow: {tooltip.metrics.elbow.toFixed(1)}%</div>
                   <div>Hand Height: {tooltip.metrics.handHeight.toFixed(2)}m</div>

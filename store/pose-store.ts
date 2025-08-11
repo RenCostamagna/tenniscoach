@@ -2,7 +2,7 @@ import { create } from "zustand"
 import { subscribeWithSelector } from "zustand/middleware"
 import { RingBuffer } from "@/lib/ring-buffer"
 import type { PoseFrame, PoseMetrics, PoseDeviation, AnalysisPhase, CameraState } from "@/types/pose"
-import type { ComparePayload } from "@/types/analysis"
+import type { ComparePayload, BiomechanicalMetrics } from "@/types/analysis"
 
 interface PoseStore {
   // Camera state
@@ -53,6 +53,11 @@ interface PoseStore {
   // Computed getters
   getRecentFrames: (count?: number) => PoseFrame[]
   getPhaseHistory: () => AnalysisPhase[]
+  
+  // Biomechanical analysis helpers
+  getBiomechanicalMetrics: () => BiomechanicalMetrics | null
+  getRecommendations: () => string[]
+  getPhaseDetails: () => any[]
 }
 
 export const usePoseStore = create<PoseStore>()(
@@ -162,6 +167,22 @@ export const usePoseStore = create<PoseStore>()(
       const { phases } = get()
       return phases.filter((phase) => phase.status === "completed")
     },
+
+    // Biomechanical analysis helpers
+    getBiomechanicalMetrics: () => {
+      const { analysis } = get()
+      return analysis?.biomechanicalMetrics || null
+    },
+
+    getRecommendations: () => {
+      const { analysis } = get()
+      return analysis?.recommendations || []
+    },
+
+    getPhaseDetails: () => {
+      const { analysis } = get()
+      return analysis?.phaseDetails || []
+    },
   })),
 )
 
@@ -176,3 +197,6 @@ export const selectAnalysis = (state: PoseStore) => state.analysis
 export const selectFps = (state: PoseStore) => state.fps
 export const selectHandedness = (state: PoseStore) => state.handedness
 export const selectStrokeType = (state: PoseStore) => state.strokeType
+export const selectBiomechanicalMetrics = (state: PoseStore) => state.getBiomechanicalMetrics()
+export const selectRecommendations = (state: PoseStore) => state.getRecommendations()
+export const selectPhaseDetails = (state: PoseStore) => state.getPhaseDetails()

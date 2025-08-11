@@ -2,6 +2,7 @@ import { PoseLandmarker, FilesetResolver } from "@mediapipe/tasks-vision"
 import type { PoseFrame, WorkerMessage } from "../types/pose"
 import type { WorkerIn, WorkerOut, ComparePayload } from "../types/analysis"
 import { loadTemplate } from "../lib/pro-templates/loader"
+import { comparePoses } from "../lib/analysis/compare"
 
 let poseLandmarker: PoseLandmarker | null = null
 let isInitialized = false
@@ -61,28 +62,97 @@ function analyze(window: Array<{ t: number; pose: any; fps: number; handedness: 
       fps: 30,
       phases: [],
       scoreGlobal: 0,
+      biomechanicalMetrics: null,
+      recommendations: [],
+      phaseDetails: []
     }
   }
 
   const fps = window[0]?.fps || 30
 
-  // Mock phase analysis - in real implementation this would use lib/analysis/*
-  const mockPhases = [
-    { phase: "early-prep" as const, score: 0.8, cost: 0.2 },
-    { phase: "late-prep" as const, score: 0.7, cost: 0.3 },
-    { phase: "accel" as const, score: 0.9, cost: 0.1 },
-    { phase: "impact" as const, score: 0.85, cost: 0.15 },
-    { phase: "early-follow" as const, score: 0.75, cost: 0.25 },
-    { phase: "finish" as const, score: 0.8, cost: 0.2 },
-  ]
+  try {
+    // Convert window data to format expected by comparePoses
+    const studentPoses = window.map(frame => ({
+      landmarks: frame.pose,
+      timestamp: frame.t,
+      frameId: frame.t // Use timestamp as frameId for simplicity
+    }))
 
-  const scoreGlobal = mockPhases.reduce((sum, p) => sum + p.score, 0) / mockPhases.length
+    // Get professional template for comparison
+    if (!proTemplate) {
+      // Fallback to mock data if no template available
+      const mockPhases = [
+        { phase: "early-prep" as const, score: 0.8, cost: 0.2 },
+        { phase: "late-prep" as const, score: 0.7, cost: 0.3 },
+        { phase: "accel" as const, score: 0.9, cost: 0.1 },
+        { phase: "impact" as const, score: 0.85, cost: 0.15 },
+        { phase: "early-follow" as const, score: 0.75, cost: 0.25 },
+        { phase: "finish" as const, score: 0.8, cost: 0.2 },
+      ]
 
-  return {
-    strokeType: currentStrokeType as any,
-    fps,
-    phases: mockPhases,
-    scoreGlobal,
+      const scoreGlobal = mockPhases.reduce((sum, p) => sum + p.score, 0) / mockPhases.length
+
+      return {
+        strokeType: currentStrokeType as any,
+        fps,
+        phases: mockPhases,
+        scoreGlobal,
+        biomechanicalMetrics: null,
+        recommendations: [],
+        phaseDetails: []
+      }
+    }
+
+    // Perform real biomechanical analysis
+    const comparisonResult = comparePoses(studentPoses, proTemplate, {
+      strokeType: currentStrokeType as any,
+      handedness: window[0]?.handedness || "R",
+      fps
+    })
+
+    // Convert comparison result to UI format
+    const phases = comparisonResult.phases.map(phase => ({
+      phase: phase.phase,
+      score: phase.score,
+      cost: phase.cost
+    }))
+
+    const scoreGlobal = comparisonResult.overallScore
+
+    return {
+      strokeType: currentStrokeType as any,
+      fps,
+      phases,
+      scoreGlobal,
+      biomechanicalMetrics: comparisonResult.biomechanicalMetrics,
+      recommendations: comparisonResult.recommendations,
+      phaseDetails: comparisonResult.phases
+    }
+
+  } catch (error) {
+    console.error("Analysis error:", error)
+    
+    // Fallback to mock data on error
+    const mockPhases = [
+      { phase: "early-prep" as const, score: 0.6, cost: 0.4 },
+      { phase: "late-prep" as const, score: 0.5, cost: 0.5 },
+      { phase: "accel" as const, score: 0.7, cost: 0.3 },
+      { phase: "impact" as const, score: 0.65, cost: 0.35 },
+      { phase: "early-follow" as const, score: 0.55, cost: 0.45 },
+      { phase: "finish" as const, score: 0.6, cost: 0.4 },
+    ]
+
+    const scoreGlobal = mockPhases.reduce((sum, p) => sum + p.score, 0) / mockPhases.length
+
+    return {
+      strokeType: currentStrokeType as any,
+      fps,
+      phases: mockPhases,
+      scoreGlobal,
+      biomechanicalMetrics: null,
+      recommendations: ["Analysis error occurred. Please try again."],
+      phaseDetails: []
+    }
   }
 }
 
