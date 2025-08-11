@@ -1,4 +1,4 @@
-// Simple worker for pose analysis - avoiding complex imports initially
+// Simple worker for pose analysis - avoiding any potential import issues
 let isInitialized = false
 let frameId = 0
 
@@ -7,16 +7,12 @@ let frameWindow: Array<{ t: number; pose: any; fps: number; handedness: string }
 const WINDOW_SIZE = 90 // 3 seconds at 30fps
 
 // Initialize worker
-async function initializeWorker() {
+function initializeWorker() {
   try {
     isInitialized = true
     
     const message = {
       type: "INITIALIZED",
-    }
-
-    if (typeof process !== "undefined" && process.env?.NODE_ENV === "development") {
-      console.debug("[worker] INITIALIZED")
     }
 
     self.postMessage(message)

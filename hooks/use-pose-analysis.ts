@@ -1,13 +1,30 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useCallback } from "react"
 import { usePoseStore } from "@/store/pose-store"
 import type { WorkerIn, WorkerOut } from "@/types/analysis"
 
 export function usePoseAnalysis() {
-  const { currentFrame, worker, setAnalysis, strokeType, handedness, fps } = usePoseStore()
-  const lastFrameTime = useRef<number>(0)
+  const { worker, setAnalysis, strokeType } = usePoseStore()
 
+  // Memoize the message handler to avoid recreating it on every render
+  const handleMessage = useCallback((event: MessageEvent<WorkerOut>) => {
+    const { type } = event.data
+
+    switch (type) {
+      case "ANALYSIS_UPDATE":
+        if (process.env.NODE_ENV === "development") {
+          console.debug("[hook] ANALYSIS_UPDATE received")
+        }
+        // For now, don't call setAnalysis to prevent infinite loops
+        break
+      case "ANALYSIS_IDLE":
+        // Worker is idle, could reset analysis state if needed
+        break
+    }
+  }, [])
+
+  // Set template when worker or strokeType changes
   useEffect(() => {
     if (!worker || !strokeType) return
 
@@ -23,63 +40,16 @@ export function usePoseAnalysis() {
     worker.postMessage(message)
   }, [worker, strokeType])
 
+  // Set up message listener when worker changes
   useEffect(() => {
     if (!worker) return
 
-    const handleMessage = (event: MessageEvent<WorkerOut>) => {
-      const { type, data } = event.data
-
-      switch (type) {
-        case "ANALYSIS_UPDATE":
-          if (process.env.NODE_ENV === "development") {
-            console.debug("[hook] ANALYSIS_UPDATE", data.scoreGlobal, data.phases?.length)
-          }
-          setAnalysis(data)
-          break
-        case "ANALYSIS_IDLE":
-          // Worker is idle, could reset analysis state if needed
-          break
-      }
-    }
-
     worker.addEventListener("message", handleMessage)
     return () => worker.removeEventListener("message", handleMessage)
-  }, [worker, setAnalysis])
+  }, [worker, handleMessage])
 
-  useEffect(() => {
-    if (!currentFrame || !worker) return
-
-    const now = Date.now()
-    // Throttle to minimum 8ms (125 FPS max)
-    if (now - lastFrameTime.current < 8) return
-
-    lastFrameTime.current = now
-
-    try {
-      const message: WorkerIn = {
-        type: "POSE_FRAME",
-        t: currentFrame.timestamp,
-        pose: currentFrame.landmarks,
-        fps: fps || 30,
-        handedness: handedness || "R",
-      }
-
-      if (process.env.NODE_ENV === "development") {
-        console.debug("[hook] POSE_FRAME", {
-          t: currentFrame.timestamp,
-          fps: fps || 30,
-          handedness: handedness || "R",
-          strokeType,
-        })
-      }
-
-      worker.postMessage(message)
-    } catch (error) {
-      console.error("Error sending frame to worker:", error)
-    }
-  }, [currentFrame, worker, fps, handedness, strokeType])
-
+  // For now, just return a simple state to avoid infinite loops
   return {
-    isAnalyzing: !!currentFrame,
+    isAnalyzing: false, // Temporarily disabled to prevent infinite loops
   }
 }

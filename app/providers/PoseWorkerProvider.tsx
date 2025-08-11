@@ -13,25 +13,11 @@ export function PoseWorkerProvider({ children }: PoseWorkerProviderProps) {
   const { setWorker, setWorkerReady } = usePoseStore()
 
   useEffect(() => {
-    // Create worker instance - use dynamic import for better compatibility
     let worker: Worker | null = null
     
-    const initWorker = async () => {
-      try {
-        // Create worker with the simplified version
-        worker = new Worker(new URL("../../lib/pose.worker.ts", import.meta.url), { type: "module" })
-      } catch (error) {
-        console.error("Failed to create worker:", error)
-        // Fallback: create a simple worker without MediaPipe for now
-        const workerBlob = new Blob([`
-          self.onmessage = function(e) {
-            if (e.data.type === "INITIALIZE") {
-              self.postMessage({ type: "INITIALIZED" })
-            }
-          }
-        `], { type: "application/javascript" })
-        worker = new Worker(URL.createObjectURL(workerBlob))
-      }
+    try {
+      // Create worker
+      worker = new Worker(new URL("../../lib/pose.worker.ts", import.meta.url), { type: "module" })
       
       // Handle worker messages
       const handleMessage = (event: MessageEvent) => {
@@ -39,9 +25,7 @@ export function PoseWorkerProvider({ children }: PoseWorkerProviderProps) {
 
         if (type === "INITIALIZED") {
           setWorkerReady(true)
-          if (process.env.NODE_ENV === "development") {
-            console.debug("[provider] Worker ready")
-          }
+          console.log("[provider] Worker ready")
         }
       }
 
@@ -51,16 +35,20 @@ export function PoseWorkerProvider({ children }: PoseWorkerProviderProps) {
       worker.postMessage({ type: "INITIALIZE" })
       setWorker(worker)
 
-      // Cleanup
-      return () => {
-        worker.removeEventListener("message", handleMessage)
+    } catch (error) {
+      console.error("Failed to create worker:", error)
+      setWorkerReady(false)
+    }
+    
+    // Simple cleanup
+    return () => {
+      if (worker) {
         worker.postMessage({ type: "TERMINATE" })
+        worker.terminate()
         setWorker(null)
         setWorkerReady(false)
       }
     }
-    
-    initWorker()
   }, [setWorker, setWorkerReady])
 
   return <PoseWorkerContext.Provider value={null}>{children}</PoseWorkerContext.Provider>

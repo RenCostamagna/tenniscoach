@@ -197,6 +197,6 @@ export const selectAnalysis = (state: PoseStore) => state.analysis
 export const selectFps = (state: PoseStore) => state.fps
 export const selectHandedness = (state: PoseStore) => state.handedness
 export const selectStrokeType = (state: PoseStore) => state.strokeType
-export const selectBiomechanicalMetrics = (state: PoseStore) => state.getBiomechanicalMetrics()
-export const selectRecommendations = (state: PoseStore) => state.getRecommendations()
-export const selectPhaseDetails = (state: PoseStore) => state.getPhaseDetails()
+export const selectBiomechanicalMetrics = (state: PoseStore) => state.analysis?.biomechanicalMetrics || null
+export const selectRecommendations = (state: PoseStore) => state.analysis?.recommendations || []
+export const selectPhaseDetails = (state: PoseStore) => state.analysis?.phaseDetails || []
