@@ -16,12 +16,52 @@ export function useCamera() {
   // Get available cameras
   const getAvailableCameras = useCallback(async () => {
     try {
+      console.log("Enumerating available cameras...")
+      
+      // First, request permissions to ensure we can access device info
+      try {
+        await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        console.log("Camera permissions granted")
+      } catch (permError) {
+        console.log("Camera permissions not granted yet, but continuing...")
+      }
+      
       const devices = await navigator.mediaDevices.enumerateDevices()
+      console.log("All devices found:", devices.map(d => ({ kind: d.kind, label: d.label, deviceId: d.deviceId })))
+      
       const videoDevices = devices.filter(device => device.kind === 'videoinput')
+      console.log("Video devices found:", videoDevices.length)
+      
+      // Log each video device
+      videoDevices.forEach((device, index) => {
+        console.log(`Camera ${index + 1}:`, {
+          label: device.label || `Camera ${index + 1}`,
+          deviceId: device.deviceId,
+          groupId: device.groupId
+        })
+      })
+      
       setAvailableCameras(videoDevices)
-      console.log("Available cameras:", videoDevices.map(d => ({ label: d.label, deviceId: d.deviceId })))
+      
+      // If we have multiple cameras, try to identify front/back
+      if (videoDevices.length > 1) {
+        console.log("Multiple cameras detected - attempting to identify front/back")
+        videoDevices.forEach((device, index) => {
+          const label = device.label.toLowerCase()
+          if (label.includes('back') || label.includes('rear') || label.includes('environment')) {
+            console.log(`Camera ${index + 1} appears to be BACK camera:`, device.label)
+          } else if (label.includes('front') || label.includes('user')) {
+            console.log(`Camera ${index + 1} appears to be FRONT camera:`, device.label)
+          } else {
+            console.log(`Camera ${index + 1} is UNKNOWN type:`, device.label)
+          }
+        })
+      }
+      
     } catch (error) {
       console.error("Failed to enumerate cameras:", error)
+      // Set at least one camera as available to allow basic functionality
+      setAvailableCameras([{ kind: 'videoinput', deviceId: 'default', label: 'Default Camera', groupId: 'default' } as MediaDeviceInfo])
     }
   }, [])
 

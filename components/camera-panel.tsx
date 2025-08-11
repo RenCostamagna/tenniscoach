@@ -83,6 +83,11 @@ export function CameraPanel() {
           <CardTitle className="flex items-center gap-2">
             <Camera className="h-5 w-5" />
             Camera Feed
+            {isActive && (
+              <Badge variant="outline" className="text-xs">
+                {currentCamera === "front" ? "📱 Front" : "📷 Back"}
+              </Badge>
+            )}
           </CardTitle>
           <div className="flex items-center gap-2">
             {isPoseInitialized ? (
@@ -208,7 +213,7 @@ export function CameraPanel() {
             </Button>
 
             {/* Camera Switch Button */}
-            {isActive && availableCameras.length > 1 && (
+            {isActive && (
               <Button
                 onClick={handleSwitchCamera}
                 variant="outline"
@@ -280,6 +285,16 @@ export function CameraPanel() {
                 <div>Processing: {isProcessing ? 'Yes' : 'No'}</div>
                 <div>Current Camera: {currentCamera}</div>
                 <div>Available Cameras: {availableCameras.length}</div>
+                {availableCameras.length > 0 && (
+                  <div className="mt-2 pt-2 border-t">
+                    <div className="font-medium">Camera Details:</div>
+                    {availableCameras.map((camera, index) => (
+                      <div key={index} className="ml-2">
+                        Camera {index + 1}: {camera.label || `Unknown Camera ${index + 1}`}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {videoRef.current && (
                   <>
                     <div>Ready State: {videoRef.current.readyState}</div>
