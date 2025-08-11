@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { usePoseStore } from "@/store/pose-store"
-import { Settings, Tennis, Target, Zap } from "lucide-react"
+import { Settings, Target, Zap } from "lucide-react"
 
 export function AnalysisControls() {
   const { 
@@ -21,9 +21,9 @@ export function AnalysisControls() {
   } = usePoseStore()
 
   const strokeTypes = [
-    { value: "forehand", label: "Forehand", icon: Tennis },
-    { value: "backhand", label: "Backhand", icon: Tennis },
-    { value: "serve", label: "Serve", icon: Tennis },
+    { value: "forehand", label: "Forehand", icon: Target },
+    { value: "backhand", label: "Backhand", icon: Target },
+    { value: "serve", label: "Serve", icon: Target },
   ]
 
   const handednessOptions = [
@@ -139,7 +139,7 @@ export function AnalysisControls() {
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Tennis className="h-4 w-4 text-purple-600" />
+                <Target className="h-4 w-4 text-purple-600" />
                 <span className="text-sm">Professional Templates</span>
               </div>
               <Badge variant="secondary" className="text-xs">

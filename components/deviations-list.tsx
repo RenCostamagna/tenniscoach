@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { AlertTriangle, User, RatioIcon as Balance, TrendingDown, Trash2, Target, Zap } from "lucide-react"
+import { AlertTriangle, User, BarChart3, TrendingDown, Trash2, Target, Zap } from "lucide-react"
 import { usePoseStore, selectBiomechanicalMetrics, selectRecommendations } from "@/store/pose-store"
 import type { PoseDeviation } from "@/types/pose"
 
@@ -74,7 +74,7 @@ export function DeviationsList() {
       case "posture":
         return User
       case "alignment":
-        return Balance
+        return BarChart3
       case "stability":
         return TrendingDown
       case "biomechanical":
