@@ -1,8 +1,8 @@
 import { PoseLandmarker, FilesetResolver } from "@mediapipe/tasks-vision"
 import type { PoseFrame, WorkerMessage } from "../types/pose"
 import type { WorkerIn, WorkerOut, ComparePayload } from "../types/analysis"
-import { loadTemplate } from "../lib/pro-templates/loader"
-import { comparePoses } from "../lib/analysis/compare"
+import { loadTemplate } from "./pro-templates/loader"
+import { comparePoses } from "./analysis/compare"
 
 let poseLandmarker: PoseLandmarker | null = null
 let isInitialized = false

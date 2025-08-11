@@ -9,17 +9,14 @@ const nextConfig = {
       }
     }
     
-    // Handle worker files
+    // Handle worker files with standard webpack support
     config.module.rules.push({
       test: /\.worker\.(js|ts)$/,
-      use: {
-        loader: 'worker-loader',
-        options: {
-          name: 'static/[hash].worker.js',
-          publicPath: '/_next/',
-        },
-      },
+      type: 'javascript/auto',
     })
+
+    // Ensure TypeScript workers are processed correctly
+    config.resolve.extensions.push('.ts', '.tsx')
 
     return config
   },
