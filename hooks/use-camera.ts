@@ -8,16 +8,56 @@ export function useCamera() {
   const streamRef = useRef<MediaStream | null>(null)
   const [isVideoReady, setIsVideoReady] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [currentCamera, setCurrentCamera] = useState<"front" | "back">("front")
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([])
 
   const { camera, setCameraState } = usePoseStore()
 
+  // Get available cameras
+  const getAvailableCameras = useCallback(async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const videoDevices = devices.filter(device => device.kind === 'videoinput')
+      setAvailableCameras(videoDevices)
+      console.log("Available cameras:", videoDevices.map(d => ({ label: d.label, deviceId: d.deviceId })))
+    } catch (error) {
+      console.error("Failed to enumerate cameras:", error)
+    }
+  }, [])
+
+  // Get camera constraints based on current selection
+  const getCameraConstraints = useCallback((cameraType: "front" | "back") => {
+    if (cameraType === "back") {
+      return {
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 },
+          facingMode: "environment", // Use back camera
+        },
+        audio: false,
+      }
+    } else {
+      return {
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 },
+          facingMode: "user", // Use front camera
+        },
+        audio: false,
+      }
+    }
+  }, [])
+
   // Start camera stream
-  const startCamera = useCallback(async () => {
+  const startCamera = useCallback(async (cameraType: "front" | "back" = currentCamera) => {
     if (camera.isActive || camera.isInitializing) return
 
-    console.log("Starting camera...")
+    console.log(`Starting ${cameraType} camera...`)
     setCameraState({ isInitializing: true, error: null })
     setIsVideoReady(false)
+    setCurrentCamera(cameraType)
 
     // Clear any existing timeout
     if (timeoutRef.current) {
@@ -25,17 +65,10 @@ export function useCamera() {
     }
 
     try {
-      // Request camera access
+      // Request camera access with specific constraints
       console.log("Requesting camera permissions...")
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30 },
-          facingMode: "user",
-        },
-        audio: false,
-      })
+      const constraints = getCameraConstraints(cameraType)
+      const stream = await navigator.mediaDevices.getUserMedia(constraints)
 
       console.log("Camera stream obtained:", stream)
       streamRef.current = stream
@@ -145,6 +178,15 @@ export function useCamera() {
           errorMessage = "No camera found on this device."
         } else if (error.name === "NotReadableError") {
           errorMessage = "Camera is already in use by another application."
+        } else if (error.name === "OverconstrainedError") {
+          errorMessage = `Camera constraints not met. Trying to switch to ${cameraType === "front" ? "back" : "front"} camera...`
+          // Try to switch to the other camera
+          if (cameraType === "front") {
+            setTimeout(() => startCamera("back"), 1000)
+          } else {
+            setTimeout(() => startCamera("front"), 1000)
+          }
+          return
         } else {
           errorMessage = error.message
         }
@@ -157,7 +199,26 @@ export function useCamera() {
         error: errorMessage,
       })
     }
-  }, [camera.isActive, camera.isInitializing, setCameraState])
+  }, [camera.isActive, camera.isInitializing, setCameraState, currentCamera, getCameraConstraints])
+
+  // Switch camera
+  const switchCamera = useCallback(async () => {
+    if (!camera.isActive) return
+    
+    console.log("Switching camera...")
+    const newCamera = currentCamera === "front" ? "back" : "front"
+    
+    // Stop current stream
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => {
+        track.stop()
+      })
+      streamRef.current = null
+    }
+
+    // Start new camera
+    await startCamera(newCamera)
+  }, [camera.isActive, currentCamera, startCamera])
 
   // Stop camera stream
   const stopCamera = useCallback(() => {
@@ -195,6 +256,11 @@ export function useCamera() {
     }
   }, [stopCamera])
 
+  // Get available cameras on mount
+  useEffect(() => {
+    getAvailableCameras()
+  }, [getAvailableCameras])
+
   // Debug effect to log video state changes
   useEffect(() => {
     if (videoRef.current) {
@@ -216,9 +282,12 @@ export function useCamera() {
     videoRef,
     startCamera,
     stopCamera,
+    switchCamera,
     isActive: camera.isActive,
     isInitializing: camera.isInitializing,
     isVideoReady,
+    currentCamera,
+    availableCameras,
     error: camera.error,
   }
 }

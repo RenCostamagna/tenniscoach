@@ -11,7 +11,7 @@ import { usePoseDetection } from "@/hooks/use-pose-detection"
 import { usePoseStore } from "@/store/pose-store"
 
 export function CameraPanel() {
-  const { videoRef, startCamera, stopCamera, isActive, isInitializing, isVideoReady, error } = useCamera()
+  const { videoRef, startCamera, stopCamera, switchCamera, isActive, isInitializing, isVideoReady, currentCamera, availableCameras, error } = useCamera()
   const { isInitialized: isPoseInitialized, isProcessing, startDetection, stopDetection } = usePoseDetection()
   const { currentFrame, metrics } = usePoseStore()
 
@@ -44,6 +44,12 @@ export function CameraPanel() {
       stopCamera()
     } else {
       await startCamera()
+    }
+  }
+
+  const handleSwitchCamera = async () => {
+    if (isActive) {
+      await switchCamera()
     }
   }
 
@@ -176,29 +182,47 @@ export function CameraPanel() {
 
         {/* Controls */}
         <div className="flex items-center justify-between">
-          <Button
-            onClick={handleToggleCamera}
-            disabled={isInitializing || !isPoseInitialized}
-            variant={isActive ? "destructive" : "default"}
-            className="flex items-center gap-2"
-          >
-            {isInitializing ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Initializing...
-              </>
-            ) : isActive ? (
-              <>
-                <CameraOff className="h-4 w-4" />
-                Stop Camera
-              </>
-            ) : (
-              <>
-                <Camera className="h-4 w-4" />
-                Start Camera
-              </>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleToggleCamera}
+              disabled={isInitializing || !isPoseInitialized}
+              variant={isActive ? "destructive" : "default"}
+              className="flex items-center gap-2"
+            >
+              {isInitializing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Initializing...
+                </>
+              ) : isActive ? (
+                <>
+                  <CameraOff className="h-4 w-4" />
+                  Stop Camera
+                </>
+              ) : (
+                <>
+                  <Camera className="h-4 w-4" />
+                  Start Camera
+                </>
+              )}
+            </Button>
+
+            {/* Camera Switch Button */}
+            {isActive && availableCameras.length > 1 && (
+              <Button
+                onClick={handleSwitchCamera}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+                title={`Switch to ${currentCamera === "front" ? "back" : "front"} camera`}
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {currentCamera === "front" ? "Back" : "Front"}
+              </Button>
             )}
-          </Button>
+          </div>
 
           {/* Status Info */}
           <div className="text-sm text-gray-600 space-y-1">
@@ -254,6 +278,8 @@ export function CameraPanel() {
                 <div>Video Element: {videoRef.current ? 'Exists' : 'Null'}</div>
                 <div>Pose AI: {isPoseInitialized ? 'Ready' : 'Loading'}</div>
                 <div>Processing: {isProcessing ? 'Yes' : 'No'}</div>
+                <div>Current Camera: {currentCamera}</div>
+                <div>Available Cameras: {availableCameras.length}</div>
                 {videoRef.current && (
                   <>
                     <div>Ready State: {videoRef.current.readyState}</div>
