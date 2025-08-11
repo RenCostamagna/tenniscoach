@@ -7,20 +7,23 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Camera, CameraOff, Loader2, AlertCircle } from "lucide-react"
 import { useCamera } from "@/hooks/use-camera"
-import { usePoseWorker } from "@/hooks/use-pose-worker"
+import { usePoseDetection } from "@/hooks/use-pose-detection"
 import { usePoseStore } from "@/store/pose-store"
 
 export function CameraPanel() {
   const { videoRef, startCamera, stopCamera, isActive, isInitializing, isVideoReady, error } = useCamera()
-  const { isWorkerReady, createCanvas } = usePoseWorker()
+  const { isInitialized: isPoseInitialized, isProcessing, startDetection, stopDetection } = usePoseDetection()
   const { currentFrame, metrics } = usePoseStore()
 
-  // Create hidden canvas for frame processing
+  // Start pose detection when video is ready
   useEffect(() => {
-    if (isActive && isWorkerReady) {
-      createCanvas()
+    if (isActive && isVideoReady && isPoseInitialized && videoRef.current) {
+      console.log("Starting pose detection for video...")
+      startDetection(videoRef.current)
+    } else if (!isActive || !isVideoReady) {
+      stopDetection()
     }
-  }, [isActive, isWorkerReady, createCanvas])
+  }, [isActive, isVideoReady, isPoseInitialized, startDetection, stopDetection])
 
   // Ensure video element is properly initialized when camera becomes active
   useEffect(() => {
@@ -76,7 +79,7 @@ export function CameraPanel() {
             Camera Feed
           </CardTitle>
           <div className="flex items-center gap-2">
-            {isWorkerReady ? (
+            {isPoseInitialized ? (
               <Badge variant="secondary" className="text-green-600">
                 AI Ready
               </Badge>
@@ -88,6 +91,11 @@ export function CameraPanel() {
             {isActive && isVideoReady && (
               <Badge variant="secondary" className="text-blue-600">
                 Video Ready
+              </Badge>
+            )}
+            {isProcessing && (
+              <Badge variant="secondary" className="text-purple-600">
+                Processing
               </Badge>
             )}
             {currentFrame && <Badge variant="secondary">Frame #{currentFrame.frameId}</Badge>}
@@ -170,7 +178,7 @@ export function CameraPanel() {
         <div className="flex items-center justify-between">
           <Button
             onClick={handleToggleCamera}
-            disabled={isInitializing || !isWorkerReady}
+            disabled={isInitializing || !isPoseInitialized}
             variant={isActive ? "destructive" : "default"}
             className="flex items-center gap-2"
           >
@@ -194,7 +202,7 @@ export function CameraPanel() {
 
           {/* Status Info */}
           <div className="text-sm text-gray-600 space-y-1">
-            {!isWorkerReady && (
+            {!isPoseInitialized && (
               <div className="flex items-center gap-1">
                 <Loader2 className="h-3 w-3 animate-spin" />
                 Loading AI model...
@@ -204,6 +212,12 @@ export function CameraPanel() {
               <div className="flex items-center gap-1 text-yellow-600">
                 <Loader2 className="h-3 w-3 animate-spin" />
                 Initializing video...
+              </div>
+            )}
+            {isProcessing && (
+              <div className="flex items-center gap-1 text-purple-600">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Processing pose...
               </div>
             )}
             {isActive && isVideoReady && currentFrame && (
@@ -238,12 +252,21 @@ export function CameraPanel() {
               <div className="mt-2 p-2 bg-gray-50 rounded text-xs font-mono">
                 <div>Video Ready: {isVideoReady ? 'Yes' : 'No'}</div>
                 <div>Video Element: {videoRef.current ? 'Exists' : 'Null'}</div>
+                <div>Pose AI: {isPoseInitialized ? 'Ready' : 'Loading'}</div>
+                <div>Processing: {isProcessing ? 'Yes' : 'No'}</div>
                 {videoRef.current && (
                   <>
                     <div>Ready State: {videoRef.current.readyState}</div>
                     <div>Video Dimensions: {videoRef.current.videoWidth} x {videoRef.current.videoHeight}</div>
                     <div>Paused: {videoRef.current.paused ? 'Yes' : 'No'}</div>
                     <div>Has Stream: {videoRef.current.srcObject ? 'Yes' : 'No'}</div>
+                  </>
+                )}
+                {currentFrame && (
+                  <>
+                    <div>Landmarks: {currentFrame.landmarks.length}</div>
+                    <div>Frame ID: {currentFrame.frameId}</div>
+                    <div>Timestamp: {currentFrame.timestamp}</div>
                   </>
                 )}
               </div>
