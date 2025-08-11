@@ -1,11 +1,12 @@
 "use client"
 
-import { useCallback, useRef, useEffect } from "react"
+import { useCallback, useRef, useEffect, useState } from "react"
 import { usePoseStore } from "@/store/pose-store"
 
 export function useCamera() {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const [isVideoReady, setIsVideoReady] = useState(false)
 
   const { camera, setCameraState } = usePoseStore()
 
@@ -14,6 +15,7 @@ export function useCamera() {
     if (camera.isActive || camera.isInitializing) return
 
     setCameraState({ isInitializing: true, error: null })
+    setIsVideoReady(false)
 
     try {
       // Request camera access
@@ -31,8 +33,60 @@ export function useCamera() {
 
       // Set video source
       if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
+        const video = videoRef.current
+        
+        // Add event listeners for video readiness
+        const handleLoadedMetadata = () => {
+          console.log("Video metadata loaded, dimensions:", video.videoWidth, "x", video.videoHeight)
+        }
+        
+        const handleCanPlay = () => {
+          console.log("Video can start playing")
+          setIsVideoReady(true)
+        }
+        
+        const handlePlaying = () => {
+          console.log("Video is now playing")
+        }
+        
+        const handleError = (e: Event) => {
+          console.error("Video error:", e)
+          setCameraState({
+            isActive: false,
+            isInitializing: false,
+            stream: null,
+            error: "Video playback error occurred",
+          })
+        }
+
+        // Remove previous listeners if any
+        video.removeEventListener('loadedmetadata', handleLoadedMetadata)
+        video.removeEventListener('canplay', handleCanPlay)
+        video.removeEventListener('playing', handlePlaying)
+        video.removeEventListener('error', handleError)
+
+        // Add new listeners
+        video.addEventListener('loadedmetadata', handleLoadedMetadata)
+        video.addEventListener('canplay', handleCanPlay)
+        video.addEventListener('playing', handlePlaying)
+        video.addEventListener('error', handleError)
+
+        // Set the stream and start playing
+        video.srcObject = stream
+        
+        // Ensure video is muted and autoplay is enabled
+        video.muted = true
+        video.autoplay = true
+        video.playsInline = true
+        
+        try {
+          await video.play()
+          console.log("Video play() successful")
+        } catch (playError) {
+          console.error("Video play() failed:", playError)
+          // Even if play() fails, the video might still work
+          // The canplay event should still fire
+        }
       }
 
       setCameraState({
@@ -78,8 +132,10 @@ export function useCamera() {
 
     if (videoRef.current) {
       videoRef.current.srcObject = null
+      videoRef.current.load() // Reset video element
     }
 
+    setIsVideoReady(false)
     setCameraState({
       isActive: false,
       isInitializing: false,
@@ -95,12 +151,30 @@ export function useCamera() {
     }
   }, [stopCamera])
 
+  // Debug effect to log video state changes
+  useEffect(() => {
+    if (videoRef.current) {
+      const video = videoRef.current
+      console.log("Video element state:", {
+        readyState: video.readyState,
+        networkState: video.networkState,
+        paused: video.paused,
+        ended: video.ended,
+        srcObject: video.srcObject,
+        currentSrc: video.currentSrc,
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight
+      })
+    }
+  }, [isVideoReady, camera.isActive])
+
   return {
     videoRef,
     startCamera,
     stopCamera,
     isActive: camera.isActive,
     isInitializing: camera.isInitializing,
+    isVideoReady,
     error: camera.error,
   }
 }

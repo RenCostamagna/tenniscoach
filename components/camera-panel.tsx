@@ -11,7 +11,7 @@ import { usePoseWorker } from "@/hooks/use-pose-worker"
 import { usePoseStore } from "@/store/pose-store"
 
 export function CameraPanel() {
-  const { videoRef, startCamera, stopCamera, isActive, isInitializing, error } = useCamera()
+  const { videoRef, startCamera, stopCamera, isActive, isInitializing, isVideoReady, error } = useCamera()
   const { isWorkerReady, createCanvas } = usePoseWorker()
   const { currentFrame, metrics } = usePoseStore()
 
@@ -48,6 +48,11 @@ export function CameraPanel() {
                 AI Loading
               </Badge>
             )}
+            {isActive && isVideoReady && (
+              <Badge variant="secondary" className="text-blue-600">
+                Video Ready
+              </Badge>
+            )}
             {currentFrame && <Badge variant="secondary">Frame #{currentFrame.frameId}</Badge>}
           </div>
         </div>
@@ -66,17 +71,37 @@ export function CameraPanel() {
         <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden">
           {isActive ? (
             <>
-              <video ref={videoRef} className="w-full h-full object-cover" playsInline muted autoPlay />
+              <video 
+                ref={videoRef} 
+                className="w-full h-full object-cover" 
+                playsInline 
+                muted 
+                autoPlay 
+                controls={false}
+                disablePictureInPicture
+                disableRemotePlayback
+              />
+
+              {/* Video Status Overlay */}
+              {!isVideoReady && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                  <div className="text-center text-white">
+                    <Loader2 className="h-8 w-8 mx-auto mb-2 animate-spin" />
+                    <p>Initializing video stream...</p>
+                    <p className="text-sm opacity-75">Please wait</p>
+                  </div>
+                </div>
+              )}
 
               {/* Pose Detection Overlay */}
-              {currentFrame && (
+              {currentFrame && isVideoReady && (
                 <div className="absolute top-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-sm">
                   Pose Detected: {currentFrame.landmarks.length} landmarks
                 </div>
               )}
 
               {/* Metrics Overlay */}
-              {metrics.confidence > 0 && (
+              {metrics.confidence > 0 && isVideoReady && (
                 <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-sm space-y-1">
                   <div>Confidence: {(metrics.confidence * 100).toFixed(0)}%</div>
                   <div>Stability: {(metrics.stability * 100).toFixed(0)}%</div>
@@ -128,14 +153,20 @@ export function CameraPanel() {
                 Loading AI model...
               </div>
             )}
-            {isActive && currentFrame && (
+            {isActive && !isVideoReady && (
+              <div className="flex items-center gap-1 text-yellow-600">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Initializing video...
+              </div>
+            )}
+            {isActive && isVideoReady && currentFrame && (
               <div>Last update: {new Date(currentFrame.timestamp).toLocaleTimeString()}</div>
             )}
           </div>
         </div>
 
         {/* Camera Info */}
-        {isActive && (
+        {isActive && isVideoReady && (
           <div className="grid grid-cols-2 gap-4 pt-4 border-t">
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
